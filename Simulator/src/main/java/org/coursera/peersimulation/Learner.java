@@ -12,6 +12,7 @@ public class Learner {
 	private int numOfSubmissions;
 	private int numOfReviews;
 	private int currentScore;
+	private Submission submission;
 	public int getLearnerId() {
 		return learnerId;
 	}
@@ -63,17 +64,22 @@ public class Learner {
 		this.learnerState=State.WORKING;
 		
 	}
-	public void submit(int tick) {
+	public Submission submit(int tick) {
+	    if(submission==null){
+	        submission= new Submission();
+	    }
 		this.learnerState=State.WAITING_REVIEW;
 		this.submissionTicks.add(tick);
 		numOfSubmissions++;
+		return submission;
 		
 	}
-	public void startReviewing(Learner learner, int i) {
+	public void startReviewing(Submission submission, int i) {
 		this.learnerState=State.REVIEWING;
 		numOfReviews++;
-		int learnerScore=learner.getCurrentScore();
+		int learnerScore=submission.getLearner().getCurrentScore();
 		learnerScore+=this.reviewBias;
+		//submission
 		
 		
 	}
@@ -85,6 +91,7 @@ public class Learner {
 		// TODO Auto-generated method stub
 		
 	}
+    
 	
 	
 

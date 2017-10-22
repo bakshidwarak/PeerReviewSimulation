@@ -60,9 +60,14 @@ public class SimulationManager {
 			while(!submissionQueue.isEmpty()){
 				reviewer=learnersReadyToReview.remove();
 				Submission current=submissionQueue.remove();
-				if(!current.getLearner().equals(reviewer)){
+				if(!current.getLearner().equals(reviewer) && !current.getReviewers().contains(reviewer)){
+				    
+				    current.getReviewers().add(reviewer);
 					reviewer.startReviewing(current.getLearner(),i);
 					addLearnerToTimeLine(reviewer, i+20);
+					if(!current.maxReviewersReached){
+					    submissionQueue.add(current);
+					}
 				}
 				else
 				{
