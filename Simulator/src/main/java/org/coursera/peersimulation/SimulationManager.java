@@ -121,4 +121,9 @@ public class SimulationManager {
         return false;
     }
 
+    public boolean isFailed(Submission submission) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
 }

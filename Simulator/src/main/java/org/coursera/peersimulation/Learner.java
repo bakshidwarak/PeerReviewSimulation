@@ -38,7 +38,7 @@ public class Learner {
                 nextActTime = tick + 1;
             }
             if (learnerState == State.WAITING_REVIEW) {
-                if (manager.isOutComeAvailable(this.submission)) {
+                if (manager.isOutComeAvailable(this.submission) && manager.isFailed(submission)) {
                     if (numOfSubmissions == MAX_SUBMISSIONS) {
                         learnerState = State.FAILED;
                     }
