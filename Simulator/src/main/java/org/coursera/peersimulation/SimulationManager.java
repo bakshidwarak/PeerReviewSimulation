@@ -2,128 +2,116 @@ package org.coursera.peersimulation;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.Set;
-import java.util.stream.Collectors;
-
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 public class SimulationManager {
-    int simulationDuration;
 
-    List<Learner>[] learnerTimeline;
+	class ReviewerScore {
+		int learnerId;
+		int score;
+		boolean isComplete;
 
-    List<Learner> learners = new ArrayList<>();
-    Queue<Learner> learnersReadyToReview = new LinkedList<>();
+		public ReviewerScore(int learnerId, int score) {
+			super();
+			this.learnerId = learnerId;
+			this.score = score;
+		}
 
-    @SuppressWarnings("unchecked")
-    public SimulationManager(int duration) {
-        this.simulationDuration = duration;
-        learnerTimeline = new List[duration + 1];
-    }
+	}
 
-    PriorityQueue<Submission> submissionQueue = new PriorityQueue<>(
-            Comparator.comparing(Submission::getSubmissionTick).thenComparing(Submission::getLearnerId));
+	private static final int MAX_REVIEWER_COUNT = 3;
 
-    public void registerLearner(Learner learner) {
-        learners.add(learner);
-        addLearnerToTimeLine(learner, learner.getFirstSubmissionStartTick());
+	int simulationDuration;
 
-    }
+	private HashMap<Integer, Set<Integer>> reviewerMap = new HashMap<>();
+	BiPredicate<Submission, Integer> submitterSameAsReviewer = (current,
+			id) -> current.getLearner().getLearnerId() == id;
+	BiPredicate<Submission, Integer> hasNotPreviouslyReviewed = (current,
+			id) -> !reviewerMap.get(current.getLearnerId()).contains(id);
 
-    public void simulatePeerReviews() {
-        for (int i = 0; i < learnerTimeline.length; i++) {
-            List<Learner> currentActive = learnerTimeline[i];
-            List<Learner> submittingUsers = currentActive.stream()
-                    .filter(l -> (l.getLearnerState() == State.NOT_STARTED || l.getLearnerState() == State.FAILED))
-                    .collect(Collectors.toList());
-            for (Learner learner : submittingUsers) {
-                learner.startWork();
-                addLearnerToTimeLine(learner, i + 50);
-            }
+	List<Learner> learners = new ArrayList<>();
+	private HashMap<Integer, Set<ReviewerScore>> currentActiveSubmissionReviewers = new HashMap<>();
 
-            List<Learner> workingUsers = currentActive.stream().filter(l -> l.getLearnerState() == State.WORKING)
-                    .collect(Collectors.toList());
-            for (Learner learner : workingUsers) {
-                Submission submission =learner.submit(i);
-                learnersReadyToReview.add(learner);
-                
-                submissionQueue.add(submission);
-            }
+	Predicate<Submission> maxReviewersReached = (submission) -> (currentActiveSubmissionReviewers
+			.get(submission.getLearnerId()).size() == MAX_REVIEWER_COUNT);
 
-            List<Learner> reviewSubmitters = currentActive.stream().filter(l -> l.getLearnerState() == State.REVIEWING)
-                    .collect(Collectors.toList());
-            for (Learner learner : reviewSubmitters) {
-                learner.endReview(i);
+	public SimulationManager(int duration) {
+		this.simulationDuration = duration;
 
-            }
-            Learner reviewer = null;
-            while (!submissionQueue.isEmpty()) {
-                reviewer = learnersReadyToReview.remove();
-                Submission current = submissionQueue.remove();
-                if (!current.getLearner().equals(reviewer) && !current.getReviewers().contains(reviewer)) {
+	}
 
-                    current.getReviewers().add(reviewer);
-                    reviewer.startReviewing(current, i);
-                    addLearnerToTimeLine(reviewer, i + 20);
-                    if (!current.maxReviewersReached) {
-                        submissionQueue.add(current);
-                    }
-                }
-                else {
-                    if (!submissionQueue.isEmpty()) {
-                        Submission next = submissionQueue.remove();
-                        reviewer.startReviewing(next.getLearner(), i);
+	PriorityQueue<Submission> submissionQueue = new PriorityQueue<>(
+			Comparator.comparing(Submission::getSubmissionTick).thenComparing(Submission::getLearnerId));
 
-                    }
-                    submissionQueue.add(current);
+	public void registerLearner(Learner learner) {
+		learners.add(learner);
 
-                }
-            }
+	}
 
-        }
+	public void simulatePeerReviews() {
+		for (int i = 1; i <= simulationDuration; i++) {
+			final int tick = i;
+			learners.forEach(l -> l.actAtPulse(this, tick));
+		}
+	}
 
-    }
+	public void submit(Submission submission) {
+		this.reviewerMap.putIfAbsent(submission.getLearnerId(), new HashSet<>());
+		currentActiveSubmissionReviewers.put(submission.getLearnerId(), new HashSet<>());
 
-    private void addLearnerToTimeLine(Learner learner, int time) {
-        if (time > simulationDuration)
-            return;
-        List<Learner> learnersAtTime = learnerTimeline[time];
-        if (learnersAtTime == null) {
-            learnersAtTime = new ArrayList<>();
+	}
 
-        }
-        learnersAtTime.add(learner);
-        learnerTimeline[time] = learnersAtTime;
+	public Optional<Submission> getNextSubmissionToReview(int learnerId) {
 
-    }
+		Submission current = null;
 
-    public void submit(Submission submission) {
-        // TODO Auto-generated method stub
-        
-    }
+		while (!submissionQueue.isEmpty()) {
 
-    public Submission getNextSubmissionToReview(int learnerId) {
-        // TODO Auto-generated method stub
-        return null;
-    }
+			current = submissionQueue.remove();
+			if (submitterSameAsReviewer.and(hasNotPreviouslyReviewed).test(current, learnerId)) {
+				reviewerMap.get(current.getLearnerId()).add(learnerId);
+				currentActiveSubmissionReviewers.computeIfAbsent(current.getLearnerId(), k -> new HashSet<>())
+						.add(new ReviewerScore(learnerId, 0));
+				reQueueSubmission(current);
+				break;
+			}
 
-    public void turnInReview(Submission reviewingSubmission, int currentReviewScore) {
-        // TODO Auto-generated method stub
-        
-    }
+		}
 
-    public boolean isOutComeAvailable(Submission submission) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+		return Optional.ofNullable(current);
+	}
 
-    public boolean isFailed(Submission submission) {
-        // TODO Auto-generated method stub
-        return false;
-    }
+	private void reQueueSubmission(Submission current) {
+		if (!maxReviewersReached.test(current)) {
+			submissionQueue.add(current);
+		}
+	}
+
+	public void turnInReview(Submission reviewingSubmission, int currentReviewScore, int reviewerid) {
+		Set<ReviewerScore> currentReviewers = currentActiveSubmissionReviewers.get(reviewingSubmission.getLearnerId());
+		currentReviewers.stream().filter(r -> r.learnerId == reviewerid && !r.isComplete).forEach(score -> {
+			score.score = currentReviewScore;
+			score.isComplete = true;
+		});
+
+	}
+
+	public boolean isOutComeAvailable(Submission submission) {
+		return currentActiveSubmissionReviewers.get(submission.getLearnerId()).stream()
+				.filter(reviewer -> reviewer.isComplete).count() == MAX_REVIEWER_COUNT;
+
+	}
+
+	public boolean isFailed(Submission submission) {
+		return currentActiveSubmissionReviewers.get(submission.getLearnerId()).stream()
+				.filter(reviewer -> reviewer.isComplete).mapToInt(r -> r.score).sum() >= 240;
+	}
 
 }

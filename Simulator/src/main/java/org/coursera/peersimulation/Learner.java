@@ -1,6 +1,7 @@
 package org.coursera.peersimulation;
 
 import java.util.List;
+import java.util.Optional;
 
 
 public class Learner {
@@ -51,13 +52,13 @@ public class Learner {
                 }
                 else if (numOfReviews < maxReviews) {
 
-                    Submission submissionToReview = manager.getNextSubmissionToReview(this.getLearnerId());
-                    startReviewing(submissionToReview);
+                    Optional<Submission> submissionToReview = manager.getNextSubmissionToReview(this.getLearnerId());
+                    submissionToReview.ifPresent(submission->startReviewing(submission));
                     nextActTime = tick + 20;
                 }
             }
             if (learnerState == State.REVIEWING) {
-                manager.turnInReview(reviewingSubmission, currentReviewScore);
+                manager.turnInReview(reviewingSubmission, currentReviewScore,this.getLearnerId());
                 nextActTime = tick + 1;
             }
         }
