@@ -1,5 +1,6 @@
 package org.coursera.peersimulation;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,7 +13,7 @@ public class Learner {
     private int firstSubmissionTrueScore;
     private int reviewBias;
     private State learnerState;
-    private List<Integer> submissionTicks;
+    private List<Integer> submissionTicks=new ArrayList<>();
     private int numOfSubmissions;
     private int numOfReviews;
     private int currentScore;
@@ -21,9 +22,15 @@ public class Learner {
     private int currentReviewScore;
 
     private Submission reviewingSubmission;
+	private int totalscore;
+	private int lastReviewTick=-1;
 
     public int getLearnerId() {
         return learnerId;
+    }
+    
+    public Learner(){
+    	
     }
 
     public void actAtPulse(SimulationManager manager, int tick) {
@@ -39,17 +46,28 @@ public class Learner {
                 nextActTime = tick + 1;
             }
             if (learnerState == State.WAITING_REVIEW) {
-                if (manager.isOutComeAvailable(this.submission) && manager.isFailed(submission)) {
-                    if (numOfSubmissions == MAX_SUBMISSIONS) {
-                        learnerState = State.FAILED;
-                    }
-                    else {
-                        int score = this.currentScore += 15;
-                        currentScore = Math.min(score, 100);
-                        startWork();
-                        nextActTime = tick + 50;
-                    }
-                }
+            	if(manager.isOutComeAvailable(this.submission)){
+            		 if ( manager.isFailed(submission)) {
+                         if (numOfSubmissions == MAX_SUBMISSIONS) {
+                             learnerState = State.FAILED;
+                         }
+                         else {
+                             int score = this.currentScore += 15;
+                             currentScore = Math.min(score, 100);
+                             startWork();
+                             nextActTime = tick + 50;
+                         }
+                     }
+            		 else
+            		 {
+            			 this.totalscore=manager.getTotalScore(submission);
+            			 this.learnerState=State.GRADED;
+            			 this.lastReviewTick=manager.getLastReviewTick(submission);
+            		 }
+            		
+            	}
+               
+                
                 else if (numOfReviews < maxReviews) {
 
                     Optional<Submission> submissionToReview = manager.getNextSubmissionToReview(this.getLearnerId());
@@ -58,7 +76,7 @@ public class Learner {
                 }
             }
             if (learnerState == State.REVIEWING) {
-                manager.turnInReview(reviewingSubmission, currentReviewScore,this.getLearnerId());
+                manager.turnInReview(reviewingSubmission, currentReviewScore,this.getLearnerId(),tick);
                 nextActTime = tick + 1;
             }
         }
@@ -84,6 +102,7 @@ public class Learner {
 
     public Learner setFirstSubmissionStartTick(int firstSubmissionStartTick) {
         this.firstSubmissionStartTick = firstSubmissionStartTick;
+        this.nextActTime=firstSubmissionStartTick;
         return this;
     }
 
@@ -161,5 +180,14 @@ public class Learner {
         // TODO Auto-generated method stub
         return currentScore;
     }
+
+	@Override
+	public String toString() {
+		Integer submissionTi = submissionTicks.size()>0?submissionTicks.get(submissionTicks.size()-1):0;
+		return learnerId + " " + submissionTi + " "
+				+ numOfReviews + " " + totalscore + " " + lastReviewTick ;
+	}
+    
+    
 
 }

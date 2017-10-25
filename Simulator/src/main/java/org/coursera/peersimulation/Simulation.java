@@ -13,14 +13,14 @@ public class Simulation {
 		int numLearners=scanner.nextInt();
 		int count=0;
 		while(count<numLearners){
-			String learnerString=scanner.nextLine();
-			Scanner lineScanner= new Scanner(learnerString);
-			int learnerId=lineScanner.nextInt();
-			int firstSubmission=lineScanner.nextInt();
-			int firstSubmissionTrueScore=lineScanner.nextInt();;
-			int reviewBias=lineScanner.nextInt();
-			
-			Learner learner=(new Learner()).setFirstSubmissionStartTick(firstSubmission).setFirstSubmissionTrueScore(firstSubmissionTrueScore).setReviewBias(reviewBias).setLearnerId(learnerId);
+
+			int learnerId=scanner.nextInt();
+			int firstSubmission=scanner.nextInt();
+			int firstSubmissionTrueScore=scanner.nextInt();;
+			int reviewBias=scanner.nextInt();
+			count++;
+			Learner learner=new Learner();
+			learner.setFirstSubmissionStartTick(firstSubmission).setFirstSubmissionTrueScore(firstSubmissionTrueScore).setReviewBias(reviewBias).setLearnerId(learnerId);
 			simulationManager.registerLearner(learner);
 		}
 		

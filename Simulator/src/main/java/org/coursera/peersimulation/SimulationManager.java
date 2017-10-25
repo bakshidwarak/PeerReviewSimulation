@@ -16,6 +16,7 @@ public class SimulationManager {
 	class ReviewerScore {
 		int learnerId;
 		int score;
+		int tick;
 		boolean isComplete;
 
 		public ReviewerScore(int learnerId, int score) {
@@ -58,8 +59,10 @@ public class SimulationManager {
 	public void simulatePeerReviews() {
 		for (int i = 1; i <= simulationDuration; i++) {
 			final int tick = i;
+			System.out.println(i);
 			learners.forEach(l -> l.actAtPulse(this, tick));
 		}
+		learners.forEach(System.out::println);
 	}
 
 	public void submit(Submission submission) {
@@ -71,6 +74,7 @@ public class SimulationManager {
 	public Optional<Submission> getNextSubmissionToReview(int learnerId) {
 
 		Submission current = null;
+		List<Submission> submissionsToReque= new ArrayList<>();
 
 		while (!submissionQueue.isEmpty()) {
 
@@ -79,12 +83,13 @@ public class SimulationManager {
 				reviewerMap.get(current.getLearnerId()).add(learnerId);
 				currentActiveSubmissionReviewers.computeIfAbsent(current.getLearnerId(), k -> new HashSet<>())
 						.add(new ReviewerScore(learnerId, 0));
-				reQueueSubmission(current);
+				submissionsToReque.add(current);
 				break;
 			}
 
 		}
 
+		submissionsToReque.stream().forEach(e->reQueueSubmission(e));
 		return Optional.ofNullable(current);
 	}
 
@@ -94,11 +99,12 @@ public class SimulationManager {
 		}
 	}
 
-	public void turnInReview(Submission reviewingSubmission, int currentReviewScore, int reviewerid) {
+	public void turnInReview(Submission reviewingSubmission, int currentReviewScore, int reviewerid, int tick) {
 		Set<ReviewerScore> currentReviewers = currentActiveSubmissionReviewers.get(reviewingSubmission.getLearnerId());
 		currentReviewers.stream().filter(r -> r.learnerId == reviewerid && !r.isComplete).forEach(score -> {
 			score.score = currentReviewScore;
 			score.isComplete = true;
+			score.tick = tick;
 		});
 
 	}
@@ -112,6 +118,20 @@ public class SimulationManager {
 	public boolean isFailed(Submission submission) {
 		return currentActiveSubmissionReviewers.get(submission.getLearnerId()).stream()
 				.filter(reviewer -> reviewer.isComplete).mapToInt(r -> r.score).sum() >= 240;
+	}
+
+	public int getTotalScore(Submission submission) {
+
+		return currentActiveSubmissionReviewers.get(submission.getLearnerId()).stream()
+				.filter(reviewer -> reviewer.isComplete).mapToInt(r -> r.score).sum();
+	}
+
+	public int getLastReviewTick(Submission submission) {
+		Comparator<ReviewerScore> comparing = (Comparator.comparing(t -> t.tick));
+		Optional<ReviewerScore> finalReviewer = currentActiveSubmissionReviewers.get(submission.getLearnerId()).stream()
+				.filter(reviewer -> reviewer.isComplete).sorted(comparing.reversed()).findFirst();
+
+		return (finalReviewer.isPresent()) ? finalReviewer.get().tick : -1;
 	}
 
 }
